@@ -1,11 +1,4 @@
-'''
-1) connect to db - done
-2) insert data from json file into db - done
-3) create endpoints to get random black and white cards - done
-4) create room functionailty (creating, joining room, admin)
-5) create leader table functionality - done
-6) create picking of cards (without repeation of the cards) - done
-'''
+
 import json
 from fastapi import Depends, FastAPI,HTTPException, WebSocket,WebSocketDisconnect, Request
 from sqlalchemy.orm import Session
