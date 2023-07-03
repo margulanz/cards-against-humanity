@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Room</title>
+    </head>
+    <body>
+        <h1> Your nickname is <span id = 'nickname'></span></h1>
+        <div id = 'judge-status'>
+            <h1><span id = 'status'>No Judge</span> is current judge</h1>
+            <button onclick='selectJudge(event)'>select random judge</button>
+            
+        </div>
+        <div id = 'black-card'>
+            <h1>Current black card:<span id = 'black_card'></span></h1>
+        </div>
+        <form action='' onsubmit='putOnTable();return false'>
+            <label>DECK: </label>
+            <select id = 'white-cards'>
+                <option value = 'test'>Test</option>
+            </select>
+            <input id = 'button' type='submit' value='Submit'>
+        </form>
+        <form action='' onsubmit='return false'>
+            <label>TABLE: </label>
+            <select id = 'table-cards'>
+                <option value = 'test'>Test</option>
+            </select>
+            <input id = 'button-table' type='submit' value='Submit'>
+        </form>
+        <div id = 'table'></div>
+        <script>
+            var ws = new WebSocket(`ws://localhost:8000/ws/`);
+            
+            ;(async function main(){
+                
+                var client_id = Date.now();
+                document.querySelector("#nickname").textContent = client_id;
+                var player = await fetch('http://localhost:8000/player',{
+                        method: 'POST',
+                        body: JSON.stringify({
+                                nickname: client_id
+                            }
+                        ),
+                        headers: {
+                            'content-type':'application/json'
+                        }
+                    }
+                )
+                .then(res=> res.json());
+                //update player to get its white cards
+                player = await fetch(`http://localhost:8000/player/${player.id}/`,{
+                        method: 'GET',
+                        headers: {
+                            'content-type':'application/json'
+                        }
+                    }
+                )
+                .then(res => res.json());
+                console.log(player)
+                //adding cards into deck of the player
+                var deck = document.getElementById('white-cards');
+                deck.innerText = null;// clear deck before adding options to keep deck up to date with database player
+
+                for (let el in player.white_cards){
+                    var opt = document.createElement('option');
+                    opt.value = player.white_cards[el].text;
+                    opt.innerHTML = player.white_cards[el].text;
+                    deck.appendChild(opt);
+                }
+
+
+
+                ws.onmessage = function(event) {
+                    var data = JSON.parse(JSON.parse(event.data));
+                    if (data.action == 'select_judge'){
+                        var status = document.getElementById('status');
+                        var black_card = document.getElementById('black_card');
+                        black_card.textContent = data.black_card;
+                        status.textContent = data.judge
+                        button = document.getElementById('button');
+                        button_table = document.getElementById('button-table');
+                        if (client_id == data.judge){
+                            button.disabled = true;
+                            button_table.disabled = false;
+                        }else{
+                            button.disabled = false;
+                            button_table.disabled = true;
+                        }
+                    }else{
+                        var table = document.getElementById('table-cards');
+                        table.innerText = null;// clear deck before adding options to keep deck up to date with database player
+                        
+                        for (let el in data.options){
+                            var opt = document.createElement('option');
+                            opt.value = data.options[el].card;
+                            opt.innerHTML = data.options[el].card;
+                            //console.log(data.options[el])
+                            table.appendChild(opt);
+                        }
+                    }
+                    
+                    
+                };
+                window.selectJudge = function(event){
+                    data = {
+                        action:'selectJudge',
+                    };
+                    ws.send(JSON.stringify(data));
+                }
+                window.putOnTable = function(){
+                    var selected_card = document.getElementById('white-cards');
+                    data = {
+                        action:'putOnTable',
+                        card:selected_card.value,
+                        user_id: player.id,
+                    };
+                    ws.send(JSON.stringify(data));
+                    
+                }
+
+
+
+
+                // delete player from db when page is closed or refreshed
+                window.addEventListener('beforeunload', (event) => {
+                    fetch(`http://localhost:8000/player/${player.nickname}`,{
+                        method: 'DELETE',
+                        headers: {
+                                'content-type':'application/json'
+                            }
+                        });
+                    event.returnValue = ''; // some chrome issues 
+                });
+            })()
+        </script>
+    </body>
+</html>
